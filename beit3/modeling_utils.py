@@ -12,6 +12,8 @@ from timm.models.layers import trunc_normal_ as __call_trunc_normal_
 
 from torchscale.model.BEiT3 import BEiT3
 from torchscale.architecture.config import EncoderConfig
+from typing import Optional
+from hook import HookManager
 
 
 def trunc_normal_(tensor, mean=0., std=1.):
@@ -48,6 +50,7 @@ class BEiT3Wrapper(nn.Module):
     def __init__(self, args, **kwargs):
         super().__init__()
         self.args = args
+        self.hook_manager = HookManager()
         self.beit3 = BEiT3(args)
         self.apply(self._init_weights)
 

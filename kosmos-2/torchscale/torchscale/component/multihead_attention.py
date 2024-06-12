@@ -44,6 +44,7 @@ class MultiheadAttention(nn.Module):
         self_attention=False,
         encoder_decoder_attention=False,
         subln=False,
+        hook: Optional[HookManager] = None
     ):
         super().__init__()
         self.args = args

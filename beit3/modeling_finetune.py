@@ -13,7 +13,8 @@ import numpy as np
 
 import utils
 from modeling_utils import BEiT3Wrapper, _get_base_config, _get_large_config
-
+from hook import HookManager
+from typing import  Optional
 
 class TwoLayerMLP(nn.Module):
     def __init__(
@@ -22,9 +23,11 @@ class TwoLayerMLP(nn.Module):
             hidden_features, 
             out_features, 
             norm_layer, 
-            norm_input=True, 
+            norm_input=True,
+            hook: Optional[HookManager] = None,
     ):
         super().__init__()
+        self.hook = hook or HookManager()
         self.norm1 = norm_layer(in_features) if norm_input else nn.Identity()
         self.dense1 = nn.Linear(in_features, hidden_features)
         self.norm2 = norm_layer(hidden_features)
@@ -32,11 +35,19 @@ class TwoLayerMLP(nn.Module):
         self.dense2 = nn.Linear(hidden_features, out_features)
 
     def forward(self, x):
-        x = self.norm1(x)
-        x = self.dense1(x)
-        x = self.norm2(x)
-        x = self.act(x)
-        return self.dense2(x)
+    #maybe just the specific layer for the mlps like in clip
+        x = self.hook("norm1.post",ret = self.norm1(x))
+        x = self.hook("dense1.post",ret = self.dense1(x))
+        x = self.hook("norm2.post",ret = self.norm2(x))
+        x = self.hook("act.post",ret = self.act(x))
+        x = self.hook("dense2.post",ret = self.dense2(x))
+        return x
+    # def forward(self, x):
+    #     x = self.norm1(x)
+    #     x = self.dense1(x)
+    #     x = self.norm2(x)
+    #     x = self.act(x)
+    #     return self.dense2(x)
 
 
 class Pooler(nn.Module):
@@ -90,7 +101,7 @@ class BEiT3ForVisualReasoning(BEiT3Wrapper):
         outputs = self.beit3(
             textual_tokens=language_input, 
             visual_tokens=vision_input, 
-            text_padding_position=padding_mask, 
+            text_padding_position=padding_mask,hook = self.hook_manager.fork("Visual_Reasoning")
         )
         x = outputs["encoder_out"]
         multiway_split_position = outputs["multiway_split_position"]
@@ -193,10 +204,12 @@ class BEiT3ForVisualQuestionAnswering(BEiT3Wrapper):
             self, 
             args, 
             num_classes, 
-            norm_layer=nn.LayerNorm, 
+            norm_layer=nn.LayerNorm,
+            hook: Optional[HookManager] = None, 
             **kwargs
     ):
         super(BEiT3ForVisualQuestionAnswering, self).__init__(args=args)
+        
         embed_dim = args.encoder_embed_dim
         self.pooler = Pooler(
             input_features=embed_dim, 
@@ -220,7 +233,9 @@ class BEiT3ForVisualQuestionAnswering(BEiT3Wrapper):
         )
         x = outputs["encoder_out"]
         cls_rep = self.pooler(x)
-        return self.head(cls_rep)
+        x = self.hook("cls_rep",ret =self.head(cls_rep))
+        self.hook.finalize()
+        return x
 
 
 class BEiT3ForRetrieval(BEiT3Wrapper):
@@ -246,11 +261,14 @@ class BEiT3ForRetrieval(BEiT3Wrapper):
             outputs = self.beit3(
                 textual_tokens=None, 
                 visual_tokens=image, 
-                text_padding_position=None, 
+                text_padding_position=None,
+                hook = self.hook_manager.fork()
             )
             x = outputs["encoder_out"]
             vision_cls = self.vision_head(x[:, 0, :])
-            vision_cls = F.normalize(vision_cls, dim=-1)
+            vision_cls = self.hook("vision_cls_post_norm", ret =  F.normalize(vision_cls, dim=-1))
+            self.hook.finalize()
+
         else:
             vision_cls = None
 
@@ -259,6 +277,7 @@ class BEiT3ForRetrieval(BEiT3Wrapper):
                 textual_tokens=text_description, 
                 visual_tokens=None, 
                 text_padding_position=padding_mask, 
+                hook = self.hook_manager.fork("beit3")
             )
             x = outputs["encoder_out"]
             language_cls = self.language_head(x[:, 0, :])
