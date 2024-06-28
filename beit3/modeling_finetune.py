@@ -34,20 +34,20 @@ class TwoLayerMLP(nn.Module):
         self.act = nn.GELU()
         self.dense2 = nn.Linear(hidden_features, out_features)
 
-    def forward(self, x):
-    #maybe just the specific layer for the mlps like in clip
-        x = self.hook("norm1.post",ret = self.norm1(x))
-        x = self.hook("dense1.post",ret = self.dense1(x))
-        x = self.hook("norm2.post",ret = self.norm2(x))
-        x = self.hook("act.post",ret = self.act(x))
-        x = self.hook("dense2.post",ret = self.dense2(x))
-        return x
     # def forward(self, x):
-    #     x = self.norm1(x)
-    #     x = self.dense1(x)
-    #     x = self.norm2(x)
-    #     x = self.act(x)
-    #     return self.dense2(x)
+    # #maybe just the specific layer for the mlps like in clip
+    #     x = self.hook("norm1.post",ret = self.norm1(x))
+    #     x = self.hook("dense1.post",ret = self.dense1(x))
+    #     x = self.hook("norm2.post",ret = self.norm2(x))
+    #     x = self.hook("act.post",ret = self.act(x))
+    #     x = self.hook("dense2.post",ret = self.dense2(x))
+    #     return x
+    def forward(self, x):
+        x = self.norm1(x)
+        x = self.dense1(x)
+        x = self.norm2(x)
+        x = self.act(x)
+        return self.dense2(x)
 
 
 class Pooler(nn.Module):

@@ -27,12 +27,14 @@ from datasets import create_downstream_dataset
 from utils import NativeScalerWithGradNormCount as NativeScaler
 import utils
 import modeling_finetune
+from hook import HookManager
 
 
 def get_args():
     parser = argparse.ArgumentParser('BEiT fine-tuning and evaluation script for image classification', add_help=False)
 
     # Model parameters
+    parser.add_argument('--hook', default= HookManager(), type=object, metavar='MODEL') #maybe add in hook manager instance?
     parser.add_argument('--model', default='beit_base_patch16_224', type=str, metavar='MODEL',
                         help='Name of model to train')
     parser.add_argument('--task', type=str, required=True, 
