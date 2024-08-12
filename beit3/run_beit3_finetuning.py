@@ -264,6 +264,8 @@ def main(args, ds_init):
         vocab_size=args.vocab_size,
         checkpoint_activations=args.checkpoint_activations,
     )
+    
+    print("\n print model: ", model)
 
     if args.finetune:
         utils.load_model_and_may_interpolate(args.finetune, model, args.model_key, args.model_prefix)
